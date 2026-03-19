@@ -36,14 +36,26 @@ def load_default_data() -> pd.DataFrame:
     return pd.read_csv(DEFAULT_CSV)
 
 
-def currency_fmt(x, _):
-    if x >= 1e9:
-        return f"${x/1e9:.1f}B"
-    if x >= 1e6:
-        return f"${x/1e6:.0f}M"
-    if x >= 1e3:
-        return f"${x/1e3:.0f}K"
-    return f"${x:.0f}"
+MONEY_COLUMNS = {
+    "Production Budget", "US Gross", "Worldwide Gross", "US DVD Sales",
+}
+
+
+def smart_fmt(col_name: str):
+    """Return a tick formatter: currency style for dollar columns, plain for the rest."""
+    is_money = col_name in MONEY_COLUMNS
+
+    def _fmt(x, _pos):
+        prefix = "$" if is_money else ""
+        if abs(x) >= 1e9:
+            return f"{prefix}{x/1e9:.1f}B"
+        if abs(x) >= 1e6:
+            return f"{prefix}{x/1e6:.0f}M"
+        if abs(x) >= 1e3:
+            return f"{prefix}{x/1e3:.0f}K"
+        return f"{prefix}{x:g}"
+
+    return mticker.FuncFormatter(_fmt)
 
 
 def draw_chart_a(df: pd.DataFrame, x_col: str, y_col: str):
@@ -61,9 +73,9 @@ def draw_chart_a(df: pd.DataFrame, x_col: str, y_col: str):
     ax.set_xlabel(x_col, fontsize=11)
     ax.set_ylabel(y_col, fontsize=11)
     if df[x_col].dtype in ["float64", "int64"]:
-        ax.xaxis.set_major_formatter(mticker.FuncFormatter(currency_fmt))
+        ax.xaxis.set_major_formatter(smart_fmt(x_col))
     if df[y_col].dtype in ["float64", "int64"]:
-        ax.yaxis.set_major_formatter(mticker.FuncFormatter(currency_fmt))
+        ax.yaxis.set_major_formatter(smart_fmt(y_col))
     fig.tight_layout()
     return fig
 
@@ -84,7 +96,7 @@ def draw_chart_b(df: pd.DataFrame, x_col: str, y_col: str):
     ax.set_xlabel(f"{x_col} range", fontsize=11)
     ax.set_ylabel(f"Mean {y_col}", fontsize=11)
     if grouped[y_col].dtype in ["float64", "int64"]:
-        ax.yaxis.set_major_formatter(mticker.FuncFormatter(currency_fmt))
+        ax.yaxis.set_major_formatter(smart_fmt(y_col))
     ax.tick_params(axis="x", rotation=30)
     fig.tight_layout()
     return fig
